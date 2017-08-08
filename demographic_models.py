@@ -32,7 +32,38 @@ def IM(params, ns, pts):
                                m12=m12, m21=m21)
 
     fs = Spectrum.from_phi(phi, ns, (xx, xx))
-    return fs
+    return(fs)
+
+
+def IMsym(params, ns, pts):
+    """IM model
+    To make this a pure isolation model, m = 0
+    ns = (n1,n2)
+    params = (s,nu1,nu2,T,m)
+    Isolation-with-migration model with exponential pop growth.
+    s: Size of pop 1 after split. (Pop 2 has size 1-s.)
+    nu1: Final size of pop 1.
+    nu2: Final size of pop 2.
+    T: Time in the past of split (in units of 2*Na generations)
+    m: Migration from between pops (2*Na*m)
+    n1,n2: Sample sizes of resulting Spectrum
+    pts: Number of grid points to use in integration.
+
+    """
+    s, nu1, nu2, T, m = params
+
+    xx = Numerics.default_grid(pts)
+
+    phi = PhiManip.phi_1D(xx)
+    phi = PhiManip.phi_1D_to_2D(xx, phi)
+
+    nu1_func = lambda t: s * (nu1/s)**(t/T)
+    nu2_func = lambda t: (1-s) * (nu2/(1-s))**(t/T)
+    phi = Integration.two_pops(phi, xx, T, nu1_func, nu2_func,
+                               m12=m, m21=m)
+
+    fs = Spectrum.from_phi(phi, ns, (xx, xx))
+    return(fs)
 
 
 def IMnogrowth_sym(params, ns, pts):
