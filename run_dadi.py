@@ -21,6 +21,12 @@ parser.add_argument('-p', "--pop", nargs='+', required=True,
                     help='name pop1 pop2')
 parser.add_argument('-s', "--size", nargs='+', required=True,
                     help='size pop1 pop2')
+parser.add_argument("--totalsize", default=60E6, required=False,
+                    help='total genome size')
+parser.add_argument("--chunksize", default=2E6, required=False,
+                    help='chunked size')
+parser.add_argument("--boots", default=100, required=False,
+                    help='number bootstraps')
 parser.add_argument("--lrt", action="store_true",
                     help="run LRT between multiple models")
 args = parser.parse_args()
@@ -208,7 +214,8 @@ def run_dadisim(fs, model, p0, upper, lower, ns, pts_l, pms, alg=2, maxit=100):
     return(model2, model_ex, p0opt[iix_ll], ll_model[iix_ll], theta[iix_ll])
 
 
-def dadi_bs(dd, blocksize, totalsize, number_bs, pops, sizes, fold=True):
+def dadi_bs(dd, blocksize, totalsize, number_bs, pops, sizes, fold=True,
+            mask=True):
     """Chunks the datadict constructed from dadi.Misc.make_data_dict(infile)
     Then reconstructs a new data_dict from chunked data and builds a fs object.
     The fs objects are then resampled with replacement to build the bootstrap.
@@ -263,10 +270,16 @@ def dadi_bs(dd, blocksize, totalsize, number_bs, pops, sizes, fold=True):
             fs = dadi.Spectrum.from_data_dict(dd_bs, pop_ids=[p1, p2],
                                               projections=[s1, s2],
                                               polarized=False)
+            if mask:
+                fs.mask[1, :] = True
+                fs.mask[:, 1] = True
         else:
             fs = dadi.Spectrum.from_data_dict(dd_bs, pop_ids=[p1, p2],
                                               projections=[s1, s2],
                                               polarized=True)
+            if mask:
+                fs.mask[1, :] = True
+                fs.mask[:, 1] = True
         chunked_fs["{}".format(i)] = fs
     # write bootstraps
     directory = "./bootstraps"
@@ -335,9 +348,9 @@ if __name__ == "__main__":
     pops = args.pop
     sizes = args.size
     pts_l = [40, 50, 60]
-    nboots = 100
-    chunksize = 2E6
-    totalsize = 80E6
+    nboots = args.boots  # 100
+    chunksize = args.chunksize  # 2E6
+    totalsize = args.totalsize  # 80E6
     fs, dd = load_data(infile, pops, sizes)
     if args.lrt:
         nestedmodels = raw_input("number nested: ")
@@ -359,8 +372,14 @@ if __name__ == "__main__":
             ll_lrt.append(ll)
             nullparams_lrt.append(map(int, nparams.split(",")))
             b += 1
+            pylab.figure(1)
+            dadi.Plotting.plot_2d_comp_multinom(model, fs, vmin=1,
+                                                resid_range=3,
+                                                pop_ids=(pops[0], pops[1]))
         pvalue = lrt_test(ll_lrt, p_lrt, nullparams_lrt, pts_l, fs,
                           model_ex, allboot)
+        print(p_lrt)
+        print(ll_lrt)
     else:
         model, model_ex, popt, ll, theta = model_select(fs, pts_l)
         dadi_bs(dd, chunksize, totalsize, nboots, pops, sizes)
@@ -368,8 +387,7 @@ if __name__ == "__main__":
         lun = [(o - p, o, o + p) for p, o in zip(uncert, popt)]
         lun.append((uncert[-1]-theta, theta, uncert[-1]+theta))
         print(lun)
-    # Plot a comparison of the resulting fs with the data.
-    pylab.figure(1)
-    dadi.Plotting.plot_2d_comp_multinom(model, fs, vmin=1, resid_range=3,
-                                        pop_ids=(pops[0], pops[1]))
-    pylab.savefig("{}_{}.png".format(pops[0], pops[1]), dpi=50)
+        # Plot a comparison of the resulting fs with the data.
+        pylab.figure(1)
+        dadi.Plotting.plot_2d_comp_multinom(model, fs, vmin=1, resid_range=3,
+                                            pop_ids=(pops[0], pops[1]))
