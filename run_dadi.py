@@ -63,15 +63,13 @@ def load_data(infile, pops, sizes, fold=True, mask=True):
                                           projections=[s1, s2],
                                           polarized=False)
         if mask:
-            fs.mask[1, :] = True
-            fs.mask[:, 1] = True
+            fs.mask[1, 1] = True
         dadi.Plotting.plot_single_2d_sfs(fs, vmin=0.1)
     else:
         fs = dadi.Spectrum.from_data_dict(dd, pop_ids=[p1, p2],
                                           projections=[s1, s2], polarized=True)
         if mask:
-            fs.mask[1, :] = True
-            fs.mask[:, 1] = True
+            fs.mask[1, 1] = True
         dadi.Plotting.plot_single_2d_sfs(fs, vmin=0.1)
     print("Data Loaded")
     return(fs, dd)

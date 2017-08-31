@@ -66,14 +66,14 @@ def parse_vcf(vcfin, popinfo, ingroup, outgroup):
                         rac = 0
                         for sample in peddict[pop]:
                             p = pop_iix.index(sample)
-                            rac += x[p][0].count("0")
+                            rac += x[p].split(":")[0].count("0")
                         dadi.write("{}\t".format(rac))
                     dadi.write("{}\t".format(aa))
                     for pop in poplist:
                         aac = 0
                         for sample in peddict[pop]:
                             p = pop_iix.index(sample)
-                            aac += x[p][0].count("1")
+                            aac += x[p].split(":")[0].count("1")
                         dadi.write("{}\t".format(aac))
                     dadi.write("{}\t{}\n".format(chrom, pos))
     dadi.close()
