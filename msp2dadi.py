@@ -9,7 +9,6 @@ import numpy as np
 import allel
 import msprime as msp
 import dadi
-from collections import defaultdict
 
 
 def msp2dadi(tree_sequence, npops):
@@ -37,7 +36,7 @@ def msp2dadi(tree_sequence, npops):
     pix = [tslist[0].get_samples(pop) for pop in range(npops)]
     iterations = len(tslist)
     for i, p in enumerate(pix):
-        fsdict[i] = np.zeros((iterations, len(p)), dtype=np.int8)
+        fsdict[i] = np.zeros((iterations, len(p)))
     # get sfs from allel
     for r, ts in enumerate(tslist):
         muts = ts.get_num_mutations()
@@ -61,26 +60,27 @@ def msp2dadi(tree_sequence, npops):
                         print("insufficient mutations in population")
     # get mean for each pop and import to dadi
     for pop in fsdict.keys():
+        print(fsdict[pop])
         fs = np.mean(np.array(fsdict[pop]), axis=0)
-        dadidict[pop] = dadi.Spectrum([fs])
+        dadidict[pop] = dadi.Spectrum(fs, pop_ids=["pop{}".format(pop)])
     return(dadidict)
 
 
-if __name__ == "__main__":
-    # 2 join events
-    dem_list=[msp.MassMigration(time=10, source=0, destination=1, proportion=1.0),
-              msp.MassMigration(time=100, source=1, destination=2, proportion=1.0)]
-    # 3 populations
-    popcfg = [msp.PopulationConfiguration(sample_size=10, initial_size=100),
-              msp.PopulationConfiguration(sample_size=10, initial_size=1000),
-              msp.PopulationConfiguration(sample_size=10, initial_size=500)]
-    # msprime simulate
-    tree_sequence = msp.simulate(population_configurations=popcfg,
-                                 Ne=10000,
-                                 length=1e5,
-                                 recombination_rate=2e-8,
-                                 mutation_rate=2e-8,
-                                 demographic_events=dem_list,
-                                 num_replicates=1000)
-    # run fx and return sfs as dadi format
-    dadidict = msp2dadi(tree_sequence, 3)
+##Example of msprime with 3 populations
+#    # 2 join events
+#    dem_list=[msp.MassMigration(time=10, source=0, destination=1, proportion=1.0),
+#              msp.MassMigration(time=100, source=1, destination=2, proportion=1.0)]
+#    # 3 populations
+#    popcfg = [msp.PopulationConfiguration(sample_size=10, initial_size=100),
+#              msp.PopulationConfiguration(sample_size=10, initial_size=1000),
+#              msp.PopulationConfiguration(sample_size=10, initial_size=500)]
+#    # msprime simulate
+#    tree_sequence = msp.simulate(population_configurations=popcfg,
+#                                 Ne=100000,
+#                                 length=1e5,
+#                                 recombination_rate=2e-8,
+#                                 mutation_rate=2e-6,
+#                                 demographic_events=dem_list,
+#                                 num_replicates=1000)
+#    # run fx and return sfs as dadi format
+#    dadidict = msp2dadi(tree_sequence, 3)
