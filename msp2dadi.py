@@ -60,14 +60,13 @@ def msp2dadi(tree_sequence, npops):
                         print("insufficient mutations in population")
     # get mean for each pop and import to dadi
     for pop in fsdict.keys():
-        print(fsdict[pop])
-        fs = np.mean(np.array(fsdict[pop]), axis=0)
+        fs = np.sum(np.array(fsdict[pop]), axis=0)
         dadidict[pop] = dadi.Spectrum(fs, pop_ids=["pop{}".format(pop)])
     return(dadidict)
 
 
 ##Example of msprime with 3 populations
-#    # 2 join events
+    # 2 join events
 #    dem_list=[msp.MassMigration(time=10, source=0, destination=1, proportion=1.0),
 #              msp.MassMigration(time=100, source=1, destination=2, proportion=1.0)]
 #    # 3 populations
@@ -83,4 +82,5 @@ def msp2dadi(tree_sequence, npops):
 #                                 demographic_events=dem_list,
 #                                 num_replicates=1000)
 #    # run fx and return sfs as dadi format
+#    print("Length in bp: {}".format(length*num_replicates))
 #    dadidict = msp2dadi(tree_sequence, 3)
