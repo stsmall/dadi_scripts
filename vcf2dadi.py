@@ -61,7 +61,8 @@ def parse_vcf(vcfin, popinfo, ingroup, outgroup):
                     pos = x[1]
                     ra = x[3]
                     aa = x[4]
-                    dadi.write("-{}-\t-{}-\t{}\t".format(ra, aa, ra))
+                    anc = x[7].split(";")[0].split("=")[1]
+                    dadi.write("-{}-\t-{}-\t{}\t".format(ra, anc, ra))
                     for pop in poplist:
                         rac = 0
                         for sample in peddict[pop]:
