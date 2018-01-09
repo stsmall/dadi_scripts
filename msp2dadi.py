@@ -7,7 +7,6 @@ Created on Sun Dec 31 13:07:13 2017
 
 import numpy as np
 import allel
-import msprime as msp
 import dadi
 
 
@@ -46,8 +45,6 @@ def msp2dadi(tree_sequence, npops, average=False, mask_corners=True):
                 for variant in ts.variants():
                     V[variant.index] = variant.genotypes
                 gt = allel.HaplotypeArray(V)
-                # pos is unused in sfs, left in code for future use
-                pos = allel.SortedIndex([int(v.position) for v in ts.variants()])
                 aclist = []
                 for p in pix:
                     aclist.append(gt[:, p].count_alleles()[:, 1])
@@ -72,7 +69,7 @@ def msp2dadi(tree_sequence, npops, average=False, mask_corners=True):
                     for i, j, k, m, n, p in zip(*aclist):
                         fsdict[r][i, j, k, m, n, p] += 1
     if average:
-        data = np.average(fsdict, axis=0)
+        data = np.mean(fsdict, axis=0)
     else:
         data = np.sum(fsdict, axis=0)
     pids = ["pop{}".format(p) for p in range(npops)]
@@ -82,20 +79,17 @@ def msp2dadi(tree_sequence, npops, average=False, mask_corners=True):
 
 # Example of msprime with 3 populations
     # 2 join events
-    dem_list = [msp.MassMigration(time=100, source=0, destination=1, proportion=1.0),
-                msp.MassMigration(time=100, source=0, destination=1, proportion=1.0)]
-    # 3 populations
-    popcfg = [msp.PopulationConfiguration(sample_size=10, initial_size=100),
-              msp.PopulationConfiguration(sample_size=10, initial_size=1000),
-              msp.PopulationConfiguration(sample_size=10, initial_size=100)]
-    # msprime simulate
-    tree_sequence = msp.simulate(population_configurations=popcfg,
-                                 Ne=100000,
-                                 length=2e6,
-                                 recombination_rate=2e-8,
-                                 mutation_rate=2e-8,
-                                 demographic_events=dem_list,
-                                 num_replicates=10)
-    # run fx and return sfs as dadi format
-    # print("Length in bp: {}".format(length*num_replicates))
-    msp2dadi(tree_sequence, 3)
+#    import msprime as msp
+#    dem_list = [msp.MassMigration(time=10, source=0, destination=1, proportion=1.0)]
+#    # 3 populations
+#    popcfg = [msp.PopulationConfiguration(sample_size=10, initial_size=100),
+#              msp.PopulationConfiguration(sample_size=10, initial_size=1000)]
+#    # msprime simulate
+#    tree_sequence = msp.simulate(population_configurations=popcfg,
+#                                 Ne=10000,
+#                                 length=2e6,
+#                                 recombination_rate=2e-8,
+#                                 mutation_rate=2e-8,
+#                                 demographic_events=dem_list,
+#                                 num_replicates=40)
+#    msp2dadi(tree_sequence, 2)
