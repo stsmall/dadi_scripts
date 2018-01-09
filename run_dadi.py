@@ -64,13 +64,12 @@ def load_data(infile, pops, sizes, fold=True, mask=True):
                                           polarized=False)
         if mask:
             fs.mask[1, 1] = True
-        dadi.Plotting.plot_single_2d_sfs(fs, vmin=0.1)
     else:
         fs = dadi.Spectrum.from_data_dict(dd, pop_ids=[p1, p2],
                                           projections=[s1, s2], polarized=True)
         if mask:
             fs.mask[1, 1] = True
-        dadi.Plotting.plot_single_2d_sfs(fs, vmin=0.1)
+    dadi.Plotting.plot_single_2d_sfs(fs, vmin=0.1)
     print("Data Loaded")
     return(fs, dd)
 
@@ -193,7 +192,6 @@ def run_dadisim(fs, model, p0, upper, lower, ns, pts_l, pms, alg=2, maxit=100):
                                                     upper_bound=upper,
                                                     verbose=len(p0p),
                                                     maxiter=maxit)
-        r += 1
         print("completing run {}".format(r))
         p0opt.append(popt)
         print("Optimization complete")
@@ -206,14 +204,14 @@ def run_dadisim(fs, model, p0, upper, lower, ns, pts_l, pms, alg=2, maxit=100):
         theta.append(theta0)
         print("Optimal theta0, anc: {}".format(theta0))
         iix_ll = ll_model.index(max(ll_model))
-        p0 = p0opt[iix_ll]
-    iix_ll = ll_model.index(max(ll_model))
-    print("Max ll: {}\t popt: {}\n".format(max(ll_model), p0opt[iix_ll]))
+        p0 = popt
+        print(iix_ll)
+        r += 1
+    print("\n\nMax ll: {}\t popt: {}\n\n".format(max(ll_model), p0opt[iix_ll]))
     return(model2, model_ex, p0opt[iix_ll], ll_model[iix_ll], theta[iix_ll])
 
 
-def dadi_bs(dd, blocksize, totalsize, number_bs, pops, sizes, fold=True,
-            mask=True):
+def dadi_bs(dd, blocksize, totalsize, number_bs, pops, sizes, fold=True, mask=True):
     """Chunks the datadict constructed from dadi.Misc.make_data_dict(infile)
     Then reconstructs a new data_dict from chunked data and builds a fs object.
     The fs objects are then resampled with replacement to build the bootstrap.
@@ -345,11 +343,11 @@ if __name__ == "__main__":
     infile = args.infile
     pops = args.pop
     sizes = args.size
-    pts_l = [40, 50, 60]
+    pts_l = [300, 320, 340]
     nboots = args.boots  # 100
     chunksize = args.chunksize  # 2E6
     totalsize = args.totalsize  # 80E6
-    fs, dd = load_data(infile, pops, sizes)
+    fs, dd = load_data(infile, pops, sizes, fold=True, mask=True)
     if args.lrt:
         nestedmodels = raw_input("number nested: ")
         assert int(nestedmodels) > 1
@@ -360,7 +358,7 @@ if __name__ == "__main__":
         while b < int(nestedmodels):
             nparams = raw_input("index of null params: ")
             model, model_ex, popt, ll, theta = model_select(fs, pts_l)
-            dadi_bs(dd, chunksize, totalsize, nboots, pops, sizes)
+            dadi_bs(dd, chunksize, totalsize, nboots, pops, sizes, fold=True, mask=True)
             uncert, allboot = run_uncertainty(nboots, pts_l, popt, fs,
                                               model_ex)
             lun = [(o + p, o, o - p) for p, o in zip(uncert, popt)]
@@ -380,7 +378,7 @@ if __name__ == "__main__":
         print(ll_lrt)
     else:
         model, model_ex, popt, ll, theta = model_select(fs, pts_l)
-        dadi_bs(dd, chunksize, totalsize, nboots, pops, sizes)
+        dadi_bs(dd, chunksize, totalsize, nboots, pops, sizes, fold=True, mask=True)
         uncert, allboot = run_uncertainty(nboots, pts_l, popt, fs, model_ex)
         lun = [(o - p, o, o + p) for p, o in zip(uncert, popt)]
         lun.append((uncert[-1]-theta, theta, uncert[-1]+theta))
