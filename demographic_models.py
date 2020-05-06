@@ -3,7 +3,7 @@ from dadi import Numerics, PhiManip, Integration
 from dadi.Spectrum_mod import Spectrum
 
 
-def IM(params, ns, pts):
+def IMasym(params, ns, pts):
     """IM model
     To make this a pure isolation model, m = 0
     ns = (n1,n2)

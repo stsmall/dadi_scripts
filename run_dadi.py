@@ -25,10 +25,14 @@ parser.add_argument("--totalsize", default=60E6, required=False,
                     help='total genome size')
 parser.add_argument("--chunksize", default=2E6, required=False,
                     help='chunked size')
-parser.add_argument("--boots", default=100, required=False,
+parser.add_argument("--boots", default=1000, required=False,
                     help='number bootstraps')
+parser.add_argument("--iterations", default=50, required=False,
+                    help='number of restart searches')
 parser.add_argument("--lrt", action="store_true",
                     help="run LRT between multiple models")
+parser.add_argument("--fold", action="store_true",
+                    help="fold")
 args = parser.parse_args()
 
 
@@ -136,12 +140,10 @@ def model_select(fs, pts_l):
     samplesize1 = raw_input("Sample size 1: ")
     samplesize2 = raw_input("Sample size 2: ")
     ns = map(int, (samplesize1, samplesize2))
-    model2, model_ex, popt, ll, theta0 = run_dadisim(fs, model, p0, upper,
-                                                     lower, ns, pts_l, pms)
-    return(model2, model_ex, popt, ll, theta0)
+    return(fs, model, p0, upper, lower, ns, pts_l, pms)
 
 
-def run_dadisim(fs, model, p0, upper, lower, ns, pts_l, pms, alg=2, maxit=100):
+def run_dadisim(fs, model, p0, upper, lower, ns, pts_l, pms, alg=2, maxit=100, runs=50):
     """Presents options for the pre-loaded dadi demographic models. These
     are simple cases only. If need add your own to the demographic models
     module
@@ -150,7 +152,7 @@ def run_dadisim(fs, model, p0, upper, lower, ns, pts_l, pms, alg=2, maxit=100):
     ll_model = []
     theta = []
     p0opt = []
-    runs = int(raw_input("how many runs?: "))
+    runs = 50
     r = 0
     while r < runs:
         print("Begin optimization")
@@ -278,7 +280,8 @@ def dadi_bs(dd, blocksize, totalsize, number_bs, pops, sizes, fold=True, mask=Tr
                 fs.mask[:, 1] = True
         chunked_fs["{}".format(i)] = fs
     # write bootstraps
-    directory = "./bootstraps"
+    randboot = random.randint(1, 1000)
+    directory = "./bootstraps{}".format(randboot)
     if not os.path.exists(directory):
         os.makedirs(directory)
     nb = 0
@@ -291,15 +294,15 @@ def dadi_bs(dd, blocksize, totalsize, number_bs, pops, sizes, fold=True, mask=Tr
             i += 1
         nb += 1
         # write to file
-        fs.to_file("bootstraps/{0:02d}.fs".format(nb))
-    return(None)
+        fs.to_file("bootstraps{0}/{1:02d}.fs".format(randboot, nb))
+    return(randboot)
 
 
-def run_uncertainty(nboots, pts_l, popt, fs, model):
+def run_uncertainty(nboots, pts_l, popt, fs, model, randboot):
     """
     """
     # uncertainty estimates
-    all_boot = [dadi.Spectrum.from_file('bootstraps/{0:02d}.fs'.format(ii))
+    all_boot = [dadi.Spectrum.from_file('bootstraps{0}/{1:02d}.fs'.format(randboot, ii))
                 for ii in range(1, nboots + 1)]
     uncerts = dadi.Godambe.GIM_uncert(model, pts_l, all_boot, popt, fs,
                                       multinom=True)
@@ -307,8 +310,6 @@ def run_uncertainty(nboots, pts_l, popt, fs, model):
 #                                              popt_fold, fs.fold(),
 #                                              multinom=True)
 
-    print('\nEstimated parameter standard deviations from GIM: {0}'.
-          format(uncerts))
     return(uncerts, all_boot)
 
 
@@ -343,11 +344,12 @@ if __name__ == "__main__":
     infile = args.infile
     pops = args.pop
     sizes = args.size
-    pts_l = [300, 320, 340]
+    pts_l = [100, 120, 140]
     nboots = args.boots  # 100
     chunksize = args.chunksize  # 2E6
     totalsize = args.totalsize  # 80E6
-    fs, dd = load_data(infile, pops, sizes, fold=True, mask=True)
+    fold = args.fold
+    fs, dd = load_data(infile, pops, sizes, fold=fold, mask=True)
     if args.lrt:
         nestedmodels = raw_input("number nested: ")
         assert int(nestedmodels) > 1
@@ -358,9 +360,8 @@ if __name__ == "__main__":
         while b < int(nestedmodels):
             nparams = raw_input("index of null params: ")
             model, model_ex, popt, ll, theta = model_select(fs, pts_l)
-            dadi_bs(dd, chunksize, totalsize, nboots, pops, sizes, fold=True, mask=True)
-            uncert, allboot = run_uncertainty(nboots, pts_l, popt, fs,
-                                              model_ex)
+            randboot = dadi_bs(dd, chunksize, totalsize, nboots, pops, sizes, fold=fold, mask=True)
+            uncert, allboot = run_uncertainty(nboots, pts_l, popt, fs, model_ex, randboot)
             lun = [(o + p, o, o - p) for p, o in zip(uncert, popt)]
             lun.append((uncert[-1]-theta, theta, uncert[-1]+theta))
             print(lun)
@@ -377,13 +378,27 @@ if __name__ == "__main__":
         print(p_lrt)
         print(ll_lrt)
     else:
-        model, model_ex, popt, ll, theta = model_select(fs, pts_l)
-        dadi_bs(dd, chunksize, totalsize, nboots, pops, sizes, fold=True, mask=True)
-        uncert, allboot = run_uncertainty(nboots, pts_l, popt, fs, model_ex)
-        lun = [(o - p, o, o + p) for p, o in zip(uncert, popt)]
-        lun.append((uncert[-1]-theta, theta, uncert[-1]+theta))
-        print(lun)
-        # Plot a comparison of the resulting fs with the data.
+        uncertlist = []
+        poptlist = []
+        lllist = []
+        thetalist = []
+        fs, model, p0, upper, lower, ns, pts_l, pms = model_select(fs, pts_l)
+        for its in range(args.iterations):
+            model2, model_ex, popt, ll, theta = run_dadisim(fs, model, p0, upper, lower, ns, pts_l, pms)
+            randboot = dadi_bs(dd, chunksize, totalsize, nboots, pops, sizes, fold=fold, mask=True)
+            uncert, allboot = run_uncertainty(nboots, pts_l, popt, fs, model_ex, randboot)
+            uncertlist.append(uncert)
+            poptlist.append(popt)
+            lllist.append(ll)
+            thetalist.append(theta)
+        uncertmean = np.mean(np.array(uncertlist), axis=0)
+        poptmean = np.mean(np.array(poptlist), axis=0)
+        llmean = np.mean(np.array(lllist), axis=0)
+        thetamean = np.mean(np.array(thetalist), axis=0)
+        print("Ancestral Theta: {}".format(thetamean))
+        print("Likelihood: {}".format(llmean))
+        print("optimized parameters: {}".format(poptmean))
+        print('\nEstimated parameter standard deviations from GIM: {}'.format(uncertmean))
         pylab.figure(1)
-        dadi.Plotting.plot_2d_comp_multinom(model, fs, vmin=1, resid_range=3,
+        dadi.Plotting.plot_2d_comp_multinom(model2, fs, vmin=1, resid_range=3,
                                             pop_ids=(pops[0], pops[1]))
